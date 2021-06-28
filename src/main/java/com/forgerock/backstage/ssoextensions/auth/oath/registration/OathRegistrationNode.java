@@ -24,6 +24,7 @@ import com.forgerock.backstage.ssoextensions.auth.oath.OathAlgorithm;
 import com.forgerock.backstage.ssoextensions.auth.oath.OathHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.assistedinject.Assisted;
+import com.sun.identity.authentication.callbacks.HiddenValueCallback;
 import com.sun.identity.authentication.callbacks.ScriptTextOutputCallback;
 import com.sun.identity.idm.AMIdentity;
 import org.apache.commons.codec.DecoderException;
@@ -58,6 +59,8 @@ public class OathRegistrationNode extends SingleOutcomeNode {
     private static final int NUM_CODES = 10;
     private static final String BUTTON_LABEL = "Next";
     private static final String CALLBACK_ELEMENT_ID = "callback_0";
+    //ID of the hidden value callback
+    public static final String HIDDEN_VALUE_CALLCABK_ID = "oathDeviceRegistrationLink";
 
     /**
      * Configuration for the node.
@@ -102,13 +105,14 @@ public class OathRegistrationNode extends SingleOutcomeNode {
                     .put(RECOVERY_CODE_DEVICE_NAME, settings.getDeviceName());
         }
 
-        String script = GenerationUtils.getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(
-                CALLBACK_ELEMENT_ID,
-                getRegistrationUri(settings, helper.getIdentity(context))
-        );
+        final String  registrationUrl = getRegistrationUri(settings, helper.getIdentity(context));
+
+        final String script = GenerationUtils.getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(
+                CALLBACK_ELEMENT_ID, registrationUrl );
 
         List<Callback> callbacks = ImmutableList.of(
                 new ScriptTextOutputCallback(script),
+                new HiddenValueCallback(HIDDEN_VALUE_CALLCABK_ID, registrationUrl),
                 new ConfirmationCallback(ConfirmationCallback.YES, new String[]{BUTTON_LABEL}, 0)
         );
 

@@ -22,6 +22,7 @@ package com.forgerock.backstage.ssoextensions.auth.oath.registration;
 import com.forgerock.backstage.ssoextensions.auth.oath.OathAlgorithm;
 import com.forgerock.backstage.ssoextensions.auth.oath.OathHelper;
 import com.google.common.collect.ImmutableList;
+import com.sun.identity.authentication.callbacks.HiddenValueCallback;
 import com.sun.identity.authentication.callbacks.ScriptTextOutputCallback;
 import com.sun.identity.idm.AMIdentity;
 import org.forgerock.json.JsonValue;
@@ -90,9 +91,10 @@ public class OathRegistrationNodeTest {
 
         Action action = oathRegistrationNode.process(context);
 
-        assertThat(action.callbacks).hasSize(2);
+        assertThat(action.callbacks).hasSize(3);
         assertThat(action.callbacks.get(0)).isInstanceOf(ScriptTextOutputCallback.class);
-        assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
+        assertThat(action.callbacks.get(1)).isInstanceOf(HiddenValueCallback.class);
+        assertThat(action.callbacks.get(2)).isInstanceOf(ConfirmationCallback.class);
         assertThat(action.sharedState.get("oathDeviceProfile").asString()).isEqualTo("device_settings");
         assertThat(action.sharedState.isDefined("recoveryCodes")).isFalse();
         assertThat(action.sharedState.isDefined("deviceName")).isFalse();
@@ -116,9 +118,10 @@ public class OathRegistrationNodeTest {
 
         Action action = oathRegistrationNode.process(context);
 
-        assertThat(action.callbacks).hasSize(2);
+        assertThat(action.callbacks).hasSize(3);
         assertThat(action.callbacks.get(0)).isInstanceOf(ScriptTextOutputCallback.class);
-        assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
+        assertThat(action.callbacks.get(1)).isInstanceOf(HiddenValueCallback.class);
+        assertThat(action.callbacks.get(2)).isInstanceOf(ConfirmationCallback.class);
         assertThat(action.sharedState.get("oathDeviceProfile").asString()).isEqualTo("device_settings");
         assertThat(action.sharedState.get("recoveryCodes").asString()).isEqualTo("encrypted_recovery_codes");
 
