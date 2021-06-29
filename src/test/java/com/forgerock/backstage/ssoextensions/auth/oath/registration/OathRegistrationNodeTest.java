@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
+import static com.forgerock.backstage.ssoextensions.auth.oath.TestConstants.DEVICE_NAME;
+import static com.forgerock.backstage.ssoextensions.auth.oath.TestConstants.SHARED_SECRET;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -63,7 +65,8 @@ public class OathRegistrationNodeTest extends PowerMockTestCase {
     @Mock
     ConfirmationCallback confirmationCallback;
 
-    OathRegistrationNode oathRegistrationNode;
+    private OathRegistrationNode oathRegistrationNode;
+    private OathDeviceSettings deviceSettings;
 
     private final JsonValue emptySharedState = new JsonValue(new HashMap<>());
     private final ExternalRequestContext request = new ExternalRequestContext.Builder().parameters(emptyMap()).build();
@@ -77,6 +80,12 @@ public class OathRegistrationNodeTest extends PowerMockTestCase {
         when(config.passwordLength()).thenReturn(6);
 
         oathRegistrationNode = new OathRegistrationNode(config, helper, recoveryCodeGenerator);
+
+        deviceSettings = new OathDeviceSettings();
+        deviceSettings.setSharedSecret(SHARED_SECRET);
+        deviceSettings.setDeviceName(DEVICE_NAME);
+        deviceSettings.setCounter(0);
+
     }
 
     @Test
@@ -91,12 +100,10 @@ public class OathRegistrationNodeTest extends PowerMockTestCase {
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of());
         List<String> recoveryCodes = ImmutableList.of("123456");
-        OathDeviceSettings settings = new OathDeviceSettings();
-        settings.setSharedSecret("abcd");
-        settings.setDeviceName("device");
+
 
         when(config.generateRecoveryCodes()).thenReturn(false);
-        when(helper.createDeviceProfile(anyInt())).thenReturn(settings);
+        when(helper.createDeviceProfile(anyInt())).thenReturn(deviceSettings);
         when(helper.encryptOathDeviceSettings(any())).thenReturn("device_settings");
         when(helper.encryptList(recoveryCodes)).thenReturn("encrypted_recovery_codes");
         when(helper.getIdentity(any())).thenReturn(mock(AMIdentity.class));
@@ -109,7 +116,7 @@ public class OathRegistrationNodeTest extends PowerMockTestCase {
         assertThat(action.callbacks.get(2)).isInstanceOf(ConfirmationCallback.class);
         assertThat(action.sharedState.get("oathDeviceProfile").asString()).isEqualTo("device_settings");
         assertThat(action.sharedState.isDefined("recoveryCodes")).isFalse();
-        assertThat(action.sharedState.isDefined("deviceName")).isFalse();
+        assertThat(action.sharedState.isDefined(DEVICE_NAME)).isFalse();
     }
 
     @Test
@@ -117,13 +124,10 @@ public class OathRegistrationNodeTest extends PowerMockTestCase {
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of());
         List<String> recoveryCodes = ImmutableList.of("123456");
-        OathDeviceSettings settings = new OathDeviceSettings();
-        settings.setSharedSecret("abcd");
-        settings.setDeviceName("device");
 
         when(config.generateRecoveryCodes()).thenReturn(true);
         when(recoveryCodeGenerator.generateCodes(anyInt(), any(), anyBoolean())).thenReturn(recoveryCodes);
-        when(helper.createDeviceProfile(anyInt())).thenReturn(settings);
+        when(helper.createDeviceProfile(anyInt())).thenReturn(deviceSettings);
         when(helper.encryptOathDeviceSettings(any())).thenReturn("device_settings");
         when(helper.encryptList(recoveryCodes)).thenReturn("encrypted_recovery_codes");
         when(helper.getIdentity(any())).thenReturn(mock(AMIdentity.class));

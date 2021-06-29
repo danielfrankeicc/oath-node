@@ -26,6 +26,7 @@ import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static com.forgerock.backstage.ssoextensions.auth.oath.TestConstants.SHARED_SECRET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -53,9 +54,8 @@ public class HotpVerifierTest extends PowerMockTestCase {
         when(configMock.addRecoveryCodesToTransientState()).thenReturn(false);
 
         hotpVerifier = new HotpVerifier(configMock, settings);
-        ;
 
-        settings.setSharedSecret("abcd");
+        settings.setSharedSecret(SHARED_SECRET);
     }
 
     @Test

@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.forgerock.backstage.ssoextensions.auth.oath.OathConstants.OATH_DEVICE_PROFILE_KEY;
+import static com.forgerock.backstage.ssoextensions.auth.oath.TestConstants.*;
 import static com.forgerock.backstage.ssoextensions.auth.oath.verifier.OathVerifierNode.RECOVERY_PRESSED;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,8 +77,6 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
     private final JsonValue emptySharedState = new JsonValue(new HashMap<>());
     private final ExternalRequestContext request = new ExternalRequestContext.Builder().parameters(emptyMap()).build();
 
-    public static final String SHARED_SECRET = "abcd";
-    public static final String DEVICE_NAME = "myDevice";
     public static final List<String> RECOVERY_CODES_LIST = ImmutableList.of("abc", "def");
 
     @BeforeMethod
