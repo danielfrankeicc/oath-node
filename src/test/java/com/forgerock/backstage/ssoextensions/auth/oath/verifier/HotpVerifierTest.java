@@ -50,8 +50,10 @@ public class HotpVerifierTest extends PowerMockTestCase {
         when(configMock.totpTimeStepInterval()).thenReturn(30);
         when(configMock.totpMaxClockDrift()).thenReturn(5);
         when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+        when(configMock.addRecoveryCodesToTransientState()).thenReturn(false);
 
-        hotpVerifier = new HotpVerifier(configMock, settings);;
+        hotpVerifier = new HotpVerifier(configMock, settings);
+        ;
 
         settings.setSharedSecret("abcd");
     }

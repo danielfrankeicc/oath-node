@@ -23,6 +23,7 @@ import com.forgerock.backstage.ssoextensions.auth.oath.OathAlgorithm;
 import com.forgerock.backstage.ssoextensions.auth.oath.OathHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
 import org.forgerock.json.JsonValue;
 import org.forgerock.openam.auth.node.api.Action;
 import org.forgerock.openam.auth.node.api.ExternalRequestContext;
@@ -39,14 +40,17 @@ import javax.security.auth.callback.ConfirmationCallback;
 import javax.security.auth.callback.NameCallback;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.forgerock.backstage.ssoextensions.auth.oath.OathConstants.OATH_DEVICE_PROFILE_KEY;
 import static com.forgerock.backstage.ssoextensions.auth.oath.verifier.OathVerifierNode.RECOVERY_PRESSED;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_DEVICE_NAME;
+import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_KEY;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
 public class OathVerifierNodeTest extends PowerMockTestCase {
@@ -63,14 +67,21 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
     @Mock
     NameCallback nameCallback;
 
-    OathVerifierNode verifierNode;
+    @Mock
+    Injector injector;
+
+    private OathVerifierNode verifierNode;
+    private OathDeviceSettings deviceSettings;
 
     private final JsonValue emptySharedState = new JsonValue(new HashMap<>());
     private final ExternalRequestContext request = new ExternalRequestContext.Builder().parameters(emptyMap()).build();
-    private final OathDeviceSettings deviceSettings = new OathDeviceSettings();
+
+    public static final String SHARED_SECRET = "abcd";
+    public static final String DEVICE_NAME = "myDevice";
+    public static final List<String> RECOVERY_CODES_LIST = ImmutableList.of("abc", "def");
 
     @BeforeMethod
-    public void beforeMethod() {
+    public void beforeMethod() throws DevicePersistenceException {
         when(configMock.minSharedSecretLength()).thenReturn(1);
         when(configMock.passwordLength()).thenReturn(6);
         when(configMock.algorithm()).thenReturn(OathAlgorithm.HOTP);
@@ -81,14 +92,24 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
         when(configMock.totpTimeStepInterval()).thenReturn(30);
         when(configMock.totpMaxClockDrift()).thenReturn(5);
         when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+        when(configMock.addRecoveryCodesToTransientState()).thenReturn(false);
 
         verifierNode = new OathVerifierNode(configMock, helper);
 
-        deviceSettings.setSharedSecret("abcd");
+        deviceSettings = new OathDeviceSettings();
+        deviceSettings.setSharedSecret(SHARED_SECRET);
+        deviceSettings.setDeviceName(DEVICE_NAME);
+        deviceSettings.setCounter(0);
+
+        when(helper.getOathDeviceSettings(any())).thenReturn(deviceSettings);
+        when(helper.encryptList(RECOVERY_CODES_LIST)).thenReturn("encryptedList");
+        when(helper.decryptList("encryptedList")).thenReturn(RECOVERY_CODES_LIST);
     }
 
     @Test
-    public void process_whenNoDeviceSettings_thenNotRegistered() throws NodeProcessException {
+    public void process_whenNoDeviceSettings_thenNotRegistered() throws NodeProcessException, DevicePersistenceException {
+
+        when(helper.getOathDeviceSettings(any())).thenReturn(null);
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of());
         Action action = verifierNode.process(context);
@@ -100,7 +121,6 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
             throws NodeProcessException, DevicePersistenceException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(RECOVERY_PRESSED);
-        when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback));
 
@@ -115,7 +135,6 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
         when(configMock.allowRecoveryCodeUsage()).thenReturn(false);
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(RECOVERY_PRESSED);
-        when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback));
 
@@ -123,7 +142,7 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
         assertThat(action.callbacks).hasSize(2);
         assertThat(action.callbacks.get(0)).isInstanceOf(NameCallback.class);
         assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
-        assertThat(((ConfirmationCallback)action.callbacks.get(1)).getOptions().length).isEqualTo(1);
+        assertThat(((ConfirmationCallback) action.callbacks.get(1)).getOptions().length).isEqualTo(1);
     }
 
     @Test
@@ -131,7 +150,6 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
             throws DevicePersistenceException, NodeProcessException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
-        when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback));
 
@@ -139,7 +157,7 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
         assertThat(action.callbacks).hasSize(2);
         assertThat(action.callbacks.get(0)).isInstanceOf(NameCallback.class);
         assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
-        assertThat(((ConfirmationCallback)action.callbacks.get(1)).getOptions().length).isEqualTo(2);
+        assertThat(((ConfirmationCallback) action.callbacks.get(1)).getOptions().length).isEqualTo(2);
     }
 
     @Test
@@ -147,13 +165,56 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
             throws DevicePersistenceException, NodeProcessException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
-        when(helper.getOathDeviceSettings(any())).thenReturn(deviceSettings);
         when(nameCallback.getName()).thenReturn("5644919");
 
-        TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback, nameCallback));
+        TreeContext context = new TreeContext(emptySharedState, JsonValue.json(JsonValue.object(new Map.Entry[0])), request, ImmutableList.of(confirmationCallback, nameCallback));
 
         Action action = verifierNode.process(context);
         assertThat(action.outcome).isEqualTo("SUCCESS");
+        assertThat(action.transientState).isNull();
+
+    }
+
+    @Test
+    public void process_whenValidOtpProvidedFromContextAndAddRecoveryCodesToTransientStateTrueNoSharedStateProperty_thenSuccessAndTransientStateNull()
+            throws DevicePersistenceException, NodeProcessException {
+
+        when(configMock.addRecoveryCodesToTransientState()).thenReturn(true);
+
+        when(confirmationCallback.getSelectedIndex()).thenReturn(0);
+        when(nameCallback.getName()).thenReturn("5644919");
+
+        TreeContext context = new TreeContext(emptySharedState, JsonValue.json(JsonValue.object(new Map.Entry[0])), request, ImmutableList.of(confirmationCallback, nameCallback));
+
+        Action action = verifierNode.process(context);
+        assertThat(action.outcome).isEqualTo("SUCCESS");
+        assertThat(action.transientState).isNull();
+    }
+
+    @Test
+    public void process_whenValidOtpProvidedFromContextAndAddRecoveryCodesToTransientStateTrue_thenSuccessAndTransientStateContainsRecoveryCodesSharedStateNot()
+            throws DevicePersistenceException, NodeProcessException {
+
+        when(configMock.addRecoveryCodesToTransientState()).thenReturn(true);
+
+        when(confirmationCallback.getSelectedIndex()).thenReturn(0);
+
+        when(nameCallback.getName()).thenReturn("5644919");
+
+        Map<String, Object> sharedStateContent = ImmutableMap.of(
+                RECOVERY_CODE_KEY, helper.encryptList(RECOVERY_CODES_LIST),
+                RECOVERY_CODE_DEVICE_NAME, deviceSettings.getDeviceName());
+
+        JsonValue sharedState = JsonValue.json(sharedStateContent);
+
+        TreeContext context = new TreeContext(sharedState, JsonValue.json(JsonValue.object(new Map.Entry[0])), request, ImmutableList.of(confirmationCallback, nameCallback));
+
+        Action action = verifierNode.process(context);
+        assertThat(action.outcome).isEqualTo("SUCCESS");
+        assertThat(action.transientState.get(RECOVERY_CODE_KEY).asList()).containsAll(RECOVERY_CODES_LIST);
+        assertThat(action.transientState.get(RECOVERY_CODE_DEVICE_NAME).asString()).isEqualTo(deviceSettings.getDeviceName());
+        assertThat(action.sharedState.contains(RECOVERY_CODE_KEY)).isFalse();
+        assertThat(action.sharedState.contains(RECOVERY_CODE_DEVICE_NAME)).isFalse();
     }
 
     @Test
@@ -173,7 +234,6 @@ public class OathVerifierNodeTest extends PowerMockTestCase {
     public void process_whenInvalidOtpProvided_thenFail() throws DevicePersistenceException, NodeProcessException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
-        when(helper.getOathDeviceSettings(any())).thenReturn(deviceSettings);
         when(nameCallback.getName()).thenReturn("invalid_otp");
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback, nameCallback));

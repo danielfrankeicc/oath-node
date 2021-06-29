@@ -73,4 +73,9 @@ public interface OathVerifierNodeConfig {
     default boolean allowRecoveryCodeUsage() {
         return true;
     }
+
+    @Attribute(order = 1100)
+    default boolean addRecoveryCodesToTransientState() {
+        return false;
+    }
 }

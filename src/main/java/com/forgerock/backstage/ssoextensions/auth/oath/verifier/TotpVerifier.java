@@ -19,7 +19,6 @@
 
 package com.forgerock.backstage.ssoextensions.auth.oath.verifier;
 
-import com.forgerock.backstage.ssoextensions.auth.oath.registration.OathRegistrationNodeConfig;
 import org.forgerock.openam.authentication.modules.fr.oath.TOTPAlgorithm;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
 import org.forgerock.util.annotations.VisibleForTesting;

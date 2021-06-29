@@ -57,6 +57,7 @@ public class TotpVerifierTest extends PowerMockTestCase {
         when(configMock.totpTimeStepInterval()).thenReturn(30);
         when(configMock.totpMaxClockDrift()).thenReturn(5);
         when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+        when(configMock.addRecoveryCodesToTransientState()).thenReturn(false);
 
         verifier = new TotpVerifier(configMock, settings, now.toEpochSecond());
 

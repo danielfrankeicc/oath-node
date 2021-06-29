@@ -63,7 +63,6 @@ public class OathRegistrationNode extends SingleOutcomeNode {
     public static final String HIDDEN_VALUE_CALLCABK_ID = "oathDeviceRegistrationLink";
 
 
-
     @Inject
     public OathRegistrationNode(@Assisted OathRegistrationNodeConfig config,
                                 OathHelper helper,

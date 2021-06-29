@@ -27,6 +27,7 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.openam.auth.node.api.*;
 import org.forgerock.openam.core.rest.devices.DevicePersistenceException;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
+import org.forgerock.openam.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,8 @@ import java.util.ResourceBundle;
 
 import static com.forgerock.backstage.ssoextensions.auth.oath.OathConstants.OATH_DEVICE_PROFILE_KEY;
 import static com.forgerock.backstage.ssoextensions.auth.oath.verifier.OathVerifierNodeOutcomeProvider.OATHOutcome.*;
+import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_DEVICE_NAME;
+import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_KEY;
 
 
 @Node.Metadata(outcomeProvider = OathVerifierNodeOutcomeProvider.class,
@@ -100,12 +103,48 @@ public class OathVerifierNode extends AbstractDecisionNode {
             helper.saveOathDeviceSettings(context, deviceSettings);
 
             Action.ActionBuilder actionBuilder = Action.goTo(SUCCESS.name()).addNodeType(context, OATH_AUTH_TYPE);
+            if (config.addRecoveryCodesToTransientState()) {
+                addRecoveryCodesToTransientState(context, actionBuilder);
+            }
 
             return actionBuilder.build();
         } catch (OathVerificationException | DevicePersistenceException e) {
             logger.debug(e.getMessage(), e);
             return Action.goTo(FAILURE.name()).build();
         }
+    }
+
+    /**
+     * Adds recovery codes which are retrieved from shared state (encrypted) as decrypted Strings to transient state.
+     * If no codes are contained in the corresponding property (RECOVERY_CODE_KEY) in shared state, transient state is not touched.
+     * This is done as RecoveryCodeDisplay node might be placed after this node and expects the recovery codes in transient state.
+     * In AM 7.x this feature is not needed anymore as AM will use secureState in order to preserve the transient state (https://backstage.forgerock.com/docs/am/7/auth-nodes/core-action.html#accessing-tree-state).
+     * In AM 7.1 also corresponding OATH nodes are contained in the product.
+     * Also removes encrypted recovery Codes from shared state (if present)
+     *
+     * @param context       Treecontext that contanis shared and transient state
+     * @param actionBuilder {@link Action.ActionBuilder} used to build response action
+     */
+    private void addRecoveryCodesToTransientState(TreeContext context, Action.ActionBuilder actionBuilder) {
+        String encryptedRecoveryCodes = context.sharedState.get(RECOVERY_CODE_KEY).asString();
+        if (StringUtils.isEmpty(encryptedRecoveryCodes)) {
+            logger.debug("No recovery codes are found in shared state. So they are not added to transient state.");
+            return;
+        }
+
+        JsonValue transientState = context.transientState.copy();
+        JsonValue sharedState = context.sharedState.copy();
+
+        transientState
+                .put(RECOVERY_CODE_KEY, helper.decryptList(encryptedRecoveryCodes))
+                .put(RECOVERY_CODE_DEVICE_NAME, context.sharedState.get(RECOVERY_CODE_DEVICE_NAME));
+
+        sharedState.remove(RECOVERY_CODE_KEY);
+        sharedState.remove(RECOVERY_CODE_DEVICE_NAME);
+
+        actionBuilder.replaceTransientState(transientState).replaceSharedState(sharedState);
+
+        logger.debug("Decrypted recovery codes from shared state and added them to transient state. Corresponding shared state properties are deleted.");
     }
 
     /**
