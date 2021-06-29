@@ -19,36 +19,52 @@
 
 package com.forgerock.backstage.ssoextensions.auth.oath.verifier;
 
+import com.forgerock.backstage.ssoextensions.auth.oath.OathAlgorithm;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
-import org.junit.Before;
-import org.junit.Test;
+import org.mockito.Mock;
+import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
-public class HotpVerifierTest {
+public class HotpVerifierTest extends PowerMockTestCase {
+
+    @Mock
+    OathVerifierNodeConfig configMock;
 
     private final OathDeviceSettings settings = new OathDeviceSettings();
-    private final OathVerifierNode.Config config = new OathVerifierNode.Config() {
-        @Override
-        public int minSharedSecretLength() {
-            return 1;
-        }
-    };
-    private final HotpVerifier hotpVerifier = new HotpVerifier(config, settings);
+    private HotpVerifier hotpVerifier;
 
-    @Before
+    @BeforeMethod
     public void init() {
+        when(configMock.minSharedSecretLength()).thenReturn(1);
+        when(configMock.passwordLength()).thenReturn(6);
+        when(configMock.algorithm()).thenReturn(OathAlgorithm.HOTP);
+        when(configMock.hotpWindowSize()).thenReturn(100);
+        when(configMock.checksum()).thenReturn(false);
+        when(configMock.truncationOffset()).thenReturn(-1);
+        when(configMock.totpTimeStepInWindow()).thenReturn(2);
+        when(configMock.totpTimeStepInterval()).thenReturn(30);
+        when(configMock.totpMaxClockDrift()).thenReturn(5);
+        when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+
+        hotpVerifier = new HotpVerifier(configMock, settings);;
+
         settings.setSharedSecret("abcd");
     }
 
     @Test
     public void verify_whenFirst_thenValid() throws OathVerificationException {
+        settings.setCounter(0);
         hotpVerifier.verify("564491");
     }
 
     @Test
     public void verify_whenSecond_thenValid() throws OathVerificationException {
+        settings.setCounter(1);
         hotpVerifier.verify("853971");
     }
 

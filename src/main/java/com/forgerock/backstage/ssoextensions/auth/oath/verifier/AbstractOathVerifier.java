@@ -24,10 +24,10 @@ import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
 import java.security.MessageDigest;
 
 abstract class AbstractOathVerifier {
-    final OathVerifierNode.Config config;
+    final OathVerifierNodeConfig config;
     final OathDeviceSettings settings;
 
-    AbstractOathVerifier(OathVerifierNode.Config config, OathDeviceSettings settings) {
+    AbstractOathVerifier(OathVerifierNodeConfig config, OathDeviceSettings settings) {
         this.config = config;
         this.settings = settings;
     }

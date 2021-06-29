@@ -33,8 +33,10 @@ import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
 import org.forgerock.openam.utils.CodeException;
 import org.forgerock.openam.utils.RecoveryCodeGenerator;
-import org.junit.Before;
-import org.junit.Test;
+import org.mockito.Mock;
+import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import javax.security.auth.callback.ConfirmationCallback;
 import java.io.IOException;
@@ -44,27 +46,38 @@ import java.util.List;
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class OathRegistrationNodeTest {
+public class OathRegistrationNodeTest extends PowerMockTestCase {
 
-    private final OathRegistrationNode.Config config = mock(OathRegistrationNode.Config.class);
+    @Mock
+    OathRegistrationNodeConfig config;
 
-    private final OathHelper helper = mock(OathHelper.class);
-    private final RecoveryCodeGenerator recoveryCodeGenerator = mock(RecoveryCodeGenerator.class);
-    private final OathRegistrationNode oathRegistrationNode = new OathRegistrationNode(config, helper, recoveryCodeGenerator);
+    @Mock
+    OathHelper helper;
+
+    @Mock
+    RecoveryCodeGenerator recoveryCodeGenerator;
+
+    @Mock
+    ConfirmationCallback confirmationCallback;
+
+    OathRegistrationNode oathRegistrationNode;
+
     private final JsonValue emptySharedState = new JsonValue(new HashMap<>());
-    private final ConfirmationCallback confirmationCallback = mock(ConfirmationCallback.class);
     private final ExternalRequestContext request = new ExternalRequestContext.Builder().parameters(emptyMap()).build();
 
-    @Before
+    @BeforeMethod
     public void init() {
         when(config.algorithm()).thenReturn(OathAlgorithm.HOTP);
         when(config.minSharedSecretLength()).thenReturn(1);
         when(config.issuerName()).thenReturn("test");
         when(config.generateRecoveryCodes()).thenReturn(true);
         when(config.passwordLength()).thenReturn(6);
+
+        oathRegistrationNode = new OathRegistrationNode(config, helper, recoveryCodeGenerator);
     }
 
     @Test

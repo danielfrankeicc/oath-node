@@ -23,9 +23,11 @@ public class OathVerificationException extends Exception {
     public OathVerificationException() {
         super();
     }
+
     public OathVerificationException(String message) {
         super(message);
     }
+
     public OathVerificationException(String message, Throwable cause) {
         super(message, cause);
     }

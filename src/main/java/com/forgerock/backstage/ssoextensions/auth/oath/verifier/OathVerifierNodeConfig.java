@@ -68,4 +68,9 @@ public interface OathVerifierNodeConfig {
     default int totpMaxClockDrift() {
         return 5;
     }
+
+    @Attribute(order = 1000)
+    default boolean allowRecoveryCodeUsage() {
+        return true;
+    }
 }

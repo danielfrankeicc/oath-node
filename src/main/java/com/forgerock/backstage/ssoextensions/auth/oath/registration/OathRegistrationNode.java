@@ -49,10 +49,10 @@ import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_C
 import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_KEY;
 
 @Node.Metadata(outcomeProvider = SingleOutcomeNode.OutcomeProvider.class,
-        configClass = OathRegistrationNode.Config.class)
+        configClass = OathRegistrationNodeConfig.class)
 public class OathRegistrationNode extends SingleOutcomeNode {
 
-    private final Config config;
+    private final OathRegistrationNodeConfig config;
     private final OathHelper helper;
     private final RecoveryCodeGenerator recoveryCodeGenerator;
 
@@ -62,15 +62,10 @@ public class OathRegistrationNode extends SingleOutcomeNode {
     //ID of the hidden value callback
     public static final String HIDDEN_VALUE_CALLCABK_ID = "oathDeviceRegistrationLink";
 
-    /**
-     * Configuration for the node.
-     */
-    public interface Config extends OathRegistrationNodeConfig {
-    }
 
 
     @Inject
-    public OathRegistrationNode(@Assisted Config config,
+    public OathRegistrationNode(@Assisted OathRegistrationNodeConfig config,
                                 OathHelper helper,
                                 RecoveryCodeGenerator recoveryCodeGenerator) {
         this.config = config;
@@ -105,10 +100,10 @@ public class OathRegistrationNode extends SingleOutcomeNode {
                     .put(RECOVERY_CODE_DEVICE_NAME, settings.getDeviceName());
         }
 
-        final String  registrationUrl = getRegistrationUri(settings, helper.getIdentity(context));
+        final String registrationUrl = getRegistrationUri(settings, helper.getIdentity(context));
 
         final String script = GenerationUtils.getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(
-                CALLBACK_ELEMENT_ID, registrationUrl );
+                CALLBACK_ELEMENT_ID, registrationUrl);
 
         List<Callback> callbacks = ImmutableList.of(
                 new ScriptTextOutputCallback(script),

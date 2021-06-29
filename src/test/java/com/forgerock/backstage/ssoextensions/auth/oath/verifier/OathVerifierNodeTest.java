@@ -30,8 +30,10 @@ import org.forgerock.openam.auth.node.api.NodeProcessException;
 import org.forgerock.openam.auth.node.api.TreeContext;
 import org.forgerock.openam.core.rest.devices.DevicePersistenceException;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
-import org.junit.Before;
-import org.junit.Test;
+import org.mockito.Mock;
+import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import javax.security.auth.callback.ConfirmationCallback;
 import javax.security.auth.callback.NameCallback;
@@ -44,32 +46,44 @@ import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.when;
 
-public class OathVerifierNodeTest {
+public class OathVerifierNodeTest extends PowerMockTestCase {
 
-    private final OathVerifierNode.Config config = new OathVerifierNode.Config() {
-        @Override
-        public OathAlgorithm algorithm() {
-            return OathAlgorithm.HOTP;
-        }
+    @Mock
+    OathVerifierNodeConfig configMock;
 
-        @Override
-        public int minSharedSecretLength() {
-            return 1;
-        }
-    };
-    private final OathHelper helper = mock(OathHelper.class);
-    private final OathVerifierNode verifierNode = new OathVerifierNode(config, helper);
-    private final ConfirmationCallback confirmationCallback = mock(ConfirmationCallback.class);
-    private final NameCallback nameCallback = mock(NameCallback.class);
+    @Mock
+    OathHelper helper;
+
+    @Mock
+    ConfirmationCallback confirmationCallback;
+
+    @Mock
+    NameCallback nameCallback;
+
+    OathVerifierNode verifierNode;
+
     private final JsonValue emptySharedState = new JsonValue(new HashMap<>());
     private final ExternalRequestContext request = new ExternalRequestContext.Builder().parameters(emptyMap()).build();
     private final OathDeviceSettings deviceSettings = new OathDeviceSettings();
 
-    @Before
-    public void init() {
+    @BeforeMethod
+    public void beforeMethod() {
+        when(configMock.minSharedSecretLength()).thenReturn(1);
+        when(configMock.passwordLength()).thenReturn(6);
+        when(configMock.algorithm()).thenReturn(OathAlgorithm.HOTP);
+        when(configMock.hotpWindowSize()).thenReturn(100);
+        when(configMock.checksum()).thenReturn(true);
+        when(configMock.truncationOffset()).thenReturn(-1);
+        when(configMock.totpTimeStepInWindow()).thenReturn(2);
+        when(configMock.totpTimeStepInterval()).thenReturn(30);
+        when(configMock.totpMaxClockDrift()).thenReturn(5);
+        when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+
+        verifierNode = new OathVerifierNode(configMock, helper);
+
         deviceSettings.setSharedSecret("abcd");
     }
 
@@ -82,7 +96,8 @@ public class OathVerifierNodeTest {
     }
 
     @Test
-    public void process_whenRecoveryPressed_thenRecoveryCode() throws NodeProcessException, DevicePersistenceException {
+    public void process_whenRecoveryPressed_thenRecoveryCode()
+            throws NodeProcessException, DevicePersistenceException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(RECOVERY_PRESSED);
         when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
@@ -94,7 +109,26 @@ public class OathVerifierNodeTest {
     }
 
     @Test
-    public void process_whenInitialSetup_thenReturnCallbacks() throws DevicePersistenceException, NodeProcessException {
+    public void process_whenRecoveryPressedRecoveryCodeDisabled_thenReturnCallbacks()
+            throws NodeProcessException, DevicePersistenceException {
+
+        when(configMock.allowRecoveryCodeUsage()).thenReturn(false);
+
+        when(confirmationCallback.getSelectedIndex()).thenReturn(RECOVERY_PRESSED);
+        when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
+
+        TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback));
+
+        Action action = verifierNode.process(context);
+        assertThat(action.callbacks).hasSize(2);
+        assertThat(action.callbacks.get(0)).isInstanceOf(NameCallback.class);
+        assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
+        assertThat(((ConfirmationCallback)action.callbacks.get(1)).getOptions().length).isEqualTo(1);
+    }
+
+    @Test
+    public void process_whenInitialSetup_thenReturnCallbacks()
+            throws DevicePersistenceException, NodeProcessException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
         when(helper.getOathDeviceSettings(any())).thenReturn(new OathDeviceSettings());
@@ -105,14 +139,16 @@ public class OathVerifierNodeTest {
         assertThat(action.callbacks).hasSize(2);
         assertThat(action.callbacks.get(0)).isInstanceOf(NameCallback.class);
         assertThat(action.callbacks.get(1)).isInstanceOf(ConfirmationCallback.class);
+        assertThat(((ConfirmationCallback)action.callbacks.get(1)).getOptions().length).isEqualTo(2);
     }
 
     @Test
-    public void process_whenValidOtpProvidedFromContext_thenSuccess() throws DevicePersistenceException, NodeProcessException {
+    public void process_whenValidOtpProvidedFromContext_thenSuccess()
+            throws DevicePersistenceException, NodeProcessException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
         when(helper.getOathDeviceSettings(any())).thenReturn(deviceSettings);
-        when(nameCallback.getName()).thenReturn("564491");
+        when(nameCallback.getName()).thenReturn("5644919");
 
         TreeContext context = new TreeContext(emptySharedState, request, ImmutableList.of(confirmationCallback, nameCallback));
 
@@ -124,7 +160,7 @@ public class OathVerifierNodeTest {
     public void process_whenValidOtpProvidedFromSharedState_thenSuccess() throws NodeProcessException, IOException {
 
         when(confirmationCallback.getSelectedIndex()).thenReturn(0);
-        when(nameCallback.getName()).thenReturn("564491");
+        when(nameCallback.getName()).thenReturn("5644919");
         when(helper.decryptOathDeviceSettings(anyString())).thenReturn(deviceSettings);
         JsonValue sharedState = new JsonValue(ImmutableMap.of(OATH_DEVICE_PROFILE_KEY, ""));
         TreeContext context = new TreeContext(sharedState, request, ImmutableList.of(confirmationCallback, nameCallback));
@@ -145,6 +181,5 @@ public class OathVerifierNodeTest {
         Action action = verifierNode.process(context);
         assertThat(action.outcome).isEqualTo("FAILURE");
     }
-
 
 }

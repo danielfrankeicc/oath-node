@@ -28,7 +28,7 @@ import javax.xml.bind.DatatypeConverter;
 public final class HotpVerifier extends AbstractOathVerifier {
     private final OTPGenerator hotpGenerator = new HOTPAlgorithm();
 
-    HotpVerifier(OathVerifierNode.Config config, OathDeviceSettings settings) {
+    HotpVerifier(OathVerifierNodeConfig config, OathDeviceSettings settings) {
         super(config, settings);
     }
 

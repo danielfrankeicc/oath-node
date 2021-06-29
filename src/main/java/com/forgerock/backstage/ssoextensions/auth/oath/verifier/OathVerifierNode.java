@@ -27,7 +27,6 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.openam.auth.node.api.*;
 import org.forgerock.openam.core.rest.devices.DevicePersistenceException;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
-import org.forgerock.openam.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,39 +35,38 @@ import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.ConfirmationCallback;
 import javax.security.auth.callback.NameCallback;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.ResourceBundle;
 
 import static com.forgerock.backstage.ssoextensions.auth.oath.OathConstants.OATH_DEVICE_PROFILE_KEY;
 import static com.forgerock.backstage.ssoextensions.auth.oath.verifier.OathVerifierNodeOutcomeProvider.OATHOutcome.*;
-import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_DEVICE_NAME;
-import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_KEY;
 
 
 @Node.Metadata(outcomeProvider = OathVerifierNodeOutcomeProvider.class,
-        configClass = OathVerifierNode.Config.class)
+        configClass = OathVerifierNodeConfig.class)
 public class OathVerifierNode extends AbstractDecisionNode {
 
     private final Logger logger = LoggerFactory.getLogger(OathVerifierNode.class);
-    private final Config config;
+    private final OathVerifierNodeConfig config;
     private final OathHelper helper;
+
+    protected final static String NODE_NAME = OathVerifierNode.class.getSimpleName();
+    protected final static String BUNDLEPATH = OathVerifierNode.class.getName().replace(".", "/");
 
     private static int SUBMIT = 0;
     static int RECOVERY_PRESSED = 1;
 
-    /** Key to use in the session's AuthType.
+    /**
+     * Key to use in the session's AuthType.
      * Intentionally matches the type used for the official OATH Auth Module, to allow for device management from the Dashboard.
      */
     static final String OATH_AUTH_TYPE = "AuthenticatorOATH";
 
-    /**
-     * Configuration for the node.
-     */
-    public interface Config extends OathVerifierNodeConfig {
-    }
 
     @Inject
-    public OathVerifierNode(@Assisted Config config, OathHelper helper) {
+    public OathVerifierNode(@Assisted OathVerifierNodeConfig config, OathHelper helper) {
         this.config = config;
         this.helper = helper;
     }
@@ -88,13 +86,13 @@ public class OathVerifierNode extends AbstractDecisionNode {
         }
 
         Optional<ConfirmationCallback> confirmationCallback = context.getCallback(ConfirmationCallback.class);
-        if (confirmationCallback.isPresent() && confirmationCallback.get().getSelectedIndex() == RECOVERY_PRESSED) {
+        if (config.allowRecoveryCodeUsage() && confirmationCallback.isPresent() && confirmationCallback.get().getSelectedIndex() == RECOVERY_PRESSED) {
             return Action.goTo(RECOVERY_CODE.name()).build();
         }
 
         Optional<NameCallback> nameCallback = context.getCallback(NameCallback.class);
         if (!nameCallback.isPresent()) {
-            return Action.send(getCallbacks()).build();
+            return Action.send(getCallbacks(context)).build();
         }
 
         try {
@@ -102,32 +100,12 @@ public class OathVerifierNode extends AbstractDecisionNode {
             helper.saveOathDeviceSettings(context, deviceSettings);
 
             Action.ActionBuilder actionBuilder = Action.goTo(SUCCESS.name()).addNodeType(context, OATH_AUTH_TYPE);
-            addRecoveryCodesToTransientState(context, actionBuilder);
 
             return actionBuilder.build();
         } catch (OathVerificationException | DevicePersistenceException e) {
             logger.debug(e.getMessage(), e);
             return Action.goTo(FAILURE.name()).build();
         }
-    }
-
-    private void addRecoveryCodesToTransientState(TreeContext context, Action.ActionBuilder actionBuilder) {
-        String encryptedRecoveryCodes = context.sharedState.get(RECOVERY_CODE_KEY).asString();
-        if (StringUtils.isEmpty(encryptedRecoveryCodes)) {
-            return;
-        }
-
-        JsonValue transientState = context.transientState.copy();
-        JsonValue sharedState = context.sharedState.copy();
-
-        transientState
-                .put(RECOVERY_CODE_KEY, helper.decryptList(encryptedRecoveryCodes))
-                .put(RECOVERY_CODE_DEVICE_NAME, context.sharedState.get(RECOVERY_CODE_DEVICE_NAME));
-
-        sharedState.remove(RECOVERY_CODE_KEY);
-        sharedState.remove(RECOVERY_CODE_DEVICE_NAME);
-
-        actionBuilder.replaceTransientState(transientState).replaceSharedState(sharedState);
     }
 
     /**
@@ -164,10 +142,19 @@ public class OathVerifierNode extends AbstractDecisionNode {
         verifier.verify(otp);
     }
 
-    private List<Callback> getCallbacks() {
-        return ImmutableList.of(
-                new NameCallback("Enter verification code"),
-                new ConfirmationCallback(ConfirmationCallback.INFORMATION, new String[]{"Submit", "Use recovery code"}, SUBMIT)
+    private List<Callback> getCallbacks(TreeContext context) {
+
+        ResourceBundle bundle = context.request.locales.getBundleInPreferredLocale(BUNDLEPATH, getClass().getClassLoader());
+
+        ArrayList<String> confirmationOptions = new ArrayList<>();
+        confirmationOptions.add(bundle.getString("submit"));
+
+        if (config.allowRecoveryCodeUsage()) {
+            confirmationOptions.add(bundle.getString("useRecoveryCode"));
+        }
+
+        return ImmutableList.of(new NameCallback(bundle.getString("enterVerificationCode")),
+                new ConfirmationCallback(ConfirmationCallback.INFORMATION, confirmationOptions.toArray(new String[1]), SUBMIT)
         );
     }
 

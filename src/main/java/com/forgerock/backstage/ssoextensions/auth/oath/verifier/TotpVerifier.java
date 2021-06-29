@@ -19,6 +19,7 @@
 
 package com.forgerock.backstage.ssoextensions.auth.oath.verifier;
 
+import com.forgerock.backstage.ssoextensions.auth.oath.registration.OathRegistrationNodeConfig;
 import org.forgerock.openam.authentication.modules.fr.oath.TOTPAlgorithm;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
 import org.forgerock.util.annotations.VisibleForTesting;
@@ -33,12 +34,12 @@ public final class TotpVerifier extends AbstractOathVerifier {
     private final Logger logger = LoggerFactory.getLogger(TotpVerifier.class);
     private final long time;
 
-    public TotpVerifier(OathVerifierNode.Config config, OathDeviceSettings settings) {
+    public TotpVerifier(OathVerifierNodeConfig config, OathDeviceSettings settings) {
         this(config, settings, currentTimeMillis() / 1000L);
     }
 
     @VisibleForTesting
-    TotpVerifier(OathVerifierNode.Config config, OathDeviceSettings settings, long time) {
+    TotpVerifier(OathVerifierNodeConfig config, OathDeviceSettings settings, long time) {
         super(config, settings);
 
         this.time = time;
@@ -123,7 +124,7 @@ public final class TotpVerifier extends AbstractOathVerifier {
         return localTime - (time / config.totpTimeStepInterval());
     }
 
-    private void checkDrift(long localTime)  throws OathVerificationException  {
+    private void checkDrift(long localTime) throws OathVerificationException {
         if (Math.abs(getDrift(localTime)) > config.totpMaxClockDrift()) {
             throw new OathVerificationException("OTP is out of sync");
         }

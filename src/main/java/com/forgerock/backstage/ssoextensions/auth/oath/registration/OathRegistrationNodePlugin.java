@@ -28,16 +28,16 @@ import java.util.Map;
 
 public class OathRegistrationNodePlugin extends AbstractNodeAmPlugin {
 
-	static private String currentVersion = "1.0.0";
-	
-	@Override
-	protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
-		return Collections.singletonMap(OathRegistrationNodePlugin.currentVersion,
-				Collections.singletonList(OathRegistrationNode.class));
-	}
+    static private String currentVersion = OathRegistrationNodePlugin.class.getPackage().getImplementationVersion();
 
-	@Override
-	public String getPluginVersion() {
-		return OathRegistrationNodePlugin.currentVersion;
-	}
+    @Override
+    protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
+        return Collections.singletonMap(OathRegistrationNodePlugin.currentVersion,
+                Collections.singletonList(OathRegistrationNode.class));
+    }
+
+    @Override
+    public String getPluginVersion() {
+        return OathRegistrationNodePlugin.currentVersion;
+    }
 }

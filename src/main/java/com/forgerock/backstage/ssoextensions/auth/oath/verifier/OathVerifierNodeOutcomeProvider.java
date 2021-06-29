@@ -24,15 +24,12 @@ import org.forgerock.json.JsonValue;
 import org.forgerock.openam.auth.node.api.OutcomeProvider;
 import org.forgerock.util.i18n.PreferredLocales;
 
+import java.util.LinkedList;
 import java.util.List;
-
 
 public class OathVerifierNodeOutcomeProvider implements OutcomeProvider {
     public enum OATHOutcome {
-        NOT_REGISTERED("Not Registered"),
-        RECOVERY_CODE("Recovery Code"),
-        SUCCESS("Success"),
-        FAILURE("Failure");
+        NOT_REGISTERED("Not Registered"), RECOVERY_CODE("Recovery Code"), SUCCESS("Success"), FAILURE("Failure");
 
         private final String displayValue;
 
@@ -45,14 +42,15 @@ public class OathVerifierNodeOutcomeProvider implements OutcomeProvider {
         }
     }
 
-
     @Override
     public List<Outcome> getOutcomes(PreferredLocales preferredLocales, JsonValue jsonValue) {
-        return ImmutableList.of(
-                OATHOutcome.NOT_REGISTERED.getOutcome(),
-                OATHOutcome.RECOVERY_CODE.getOutcome(),
-                OATHOutcome.SUCCESS.getOutcome(),
-                OATHOutcome.FAILURE.getOutcome()
-        );
+
+        LinkedList<Outcome> outcomes = new LinkedList<>();
+        outcomes.addAll(ImmutableList.of(OATHOutcome.NOT_REGISTERED.getOutcome(), OATHOutcome.SUCCESS.getOutcome(), OATHOutcome.FAILURE.getOutcome()));
+        if (jsonValue.isNotNull() && jsonValue.get("allowRecoveryCodeUsage").asBoolean()) {
+            outcomes.add(OATHOutcome.RECOVERY_CODE.getOutcome());
+        }
+
+        return outcomes;
     }
 }

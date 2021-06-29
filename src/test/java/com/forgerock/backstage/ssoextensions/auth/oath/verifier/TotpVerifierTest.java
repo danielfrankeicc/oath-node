@@ -19,9 +19,12 @@
 
 package com.forgerock.backstage.ssoextensions.auth.oath.verifier;
 
+import com.forgerock.backstage.ssoextensions.auth.oath.OathAlgorithm;
 import org.forgerock.openam.core.rest.devices.oath.OathDeviceSettings;
-import org.junit.Before;
-import org.junit.Test;
+import org.mockito.Mock;
+import org.powermock.modules.testng.PowerMockTestCase;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -29,21 +32,34 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
-public class TotpVerifierTest {
+public class TotpVerifierTest extends PowerMockTestCase {
+
+    @Mock
+    OathVerifierNodeConfig configMock;
 
     private final OffsetDateTime now = OffsetDateTime.of(2019, 4, 1, 11, 59, 55, 0, ZoneOffset.UTC);
     private final OathDeviceSettings settings = new OathDeviceSettings();
-    private final OathVerifierNode.Config config = new OathVerifierNode.Config() {
-        @Override
-        public int minSharedSecretLength() {
-            return 1;
-        }
-    };
-    private final TotpVerifier verifier = new TotpVerifier(config, settings, now.toEpochSecond());
 
-    @Before
+
+    private TotpVerifier verifier;
+
+    @BeforeMethod
     public void init() {
+        when(configMock.minSharedSecretLength()).thenReturn(1);
+        when(configMock.passwordLength()).thenReturn(6);
+        when(configMock.algorithm()).thenReturn(OathAlgorithm.HOTP);
+        when(configMock.hotpWindowSize()).thenReturn(100);
+        when(configMock.checksum()).thenReturn(false);
+        when(configMock.truncationOffset()).thenReturn(-1);
+        when(configMock.totpTimeStepInWindow()).thenReturn(2);
+        when(configMock.totpTimeStepInterval()).thenReturn(30);
+        when(configMock.totpMaxClockDrift()).thenReturn(5);
+        when(configMock.allowRecoveryCodeUsage()).thenReturn(true);
+
+        verifier = new TotpVerifier(configMock, settings, now.toEpochSecond());
+
         settings.setSharedSecret("abcd");
     }
 
