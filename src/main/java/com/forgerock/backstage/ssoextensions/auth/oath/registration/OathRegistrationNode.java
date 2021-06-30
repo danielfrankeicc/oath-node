@@ -43,6 +43,7 @@ import javax.security.auth.callback.ConfirmationCallback;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.ResourceBundle;
 
 import static com.forgerock.backstage.ssoextensions.auth.oath.OathConstants.OATH_DEVICE_PROFILE_KEY;
 import static org.forgerock.openam.auth.nodes.RecoveryCodeDisplayNode.RECOVERY_CODE_DEVICE_NAME;
@@ -57,10 +58,12 @@ public class OathRegistrationNode extends SingleOutcomeNode {
     private final RecoveryCodeGenerator recoveryCodeGenerator;
 
     private static final int NUM_CODES = 10;
-    private static final String BUTTON_LABEL = "Next";
     private static final String CALLBACK_ELEMENT_ID = "callback_0";
     //ID of the hidden value callback
     public static final String HIDDEN_VALUE_CALLCABK_ID = "oathDeviceRegistrationLink";
+
+    protected final static String NODE_NAME = OathRegistrationNode.class.getSimpleName();
+    protected final static String BUNDLEPATH = OathRegistrationNode.class.getName().replace(".", "/");
 
 
     @Inject
@@ -104,10 +107,13 @@ public class OathRegistrationNode extends SingleOutcomeNode {
         final String script = GenerationUtils.getQRCodeGenerationJavascriptForAuthenticatorAppRegistration(
                 CALLBACK_ELEMENT_ID, registrationUrl);
 
+
+        ResourceBundle bundle = context.request.locales.getBundleInPreferredLocale(BUNDLEPATH, getClass().getClassLoader());
+
         List<Callback> callbacks = ImmutableList.of(
                 new ScriptTextOutputCallback(script),
                 new HiddenValueCallback(HIDDEN_VALUE_CALLCABK_ID, registrationUrl),
-                new ConfirmationCallback(ConfirmationCallback.YES, new String[]{BUTTON_LABEL}, 0)
+                new ConfirmationCallback(ConfirmationCallback.YES, new String[]{bundle.getString("next")}, 0)
         );
 
         return Action.send(callbacks)
