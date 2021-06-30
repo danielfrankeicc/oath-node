@@ -21,6 +21,8 @@ package com.forgerock.backstage.ssoextensions.auth.oath.registration;
 
 import org.forgerock.openam.auth.node.api.AbstractNodeAmPlugin;
 import org.forgerock.openam.auth.node.api.Node;
+import org.forgerock.openam.plugins.PluginException;
+import org.forgerock.openam.plugins.VersionComparison;
 
 import java.util.Collections;
 import java.util.Map;
@@ -34,6 +36,13 @@ public class OathRegistrationNodePlugin extends AbstractNodeAmPlugin {
     protected Map<String, Iterable<? extends Class<? extends Node>>> getNodesByVersion() {
         return Collections.singletonMap(OathRegistrationNodePlugin.currentVersion,
                 Collections.singletonList(OathRegistrationNode.class));
+    }
+
+    @Override
+    public void upgrade(String fromVersion) throws PluginException {
+        if(VersionComparison.compareVersionStrings(fromVersion, getPluginVersion()) > 0) {
+            pluginTools.upgradeAuthNode(OathRegistrationNode.class);
+        }
     }
 
     @Override

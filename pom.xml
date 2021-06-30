@@ -24,7 +24,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.forgerock.backstage.ssoextensions</groupId>
-    <version>1.2.1</version>
+    <version>1.2.2</version>
     <artifactId>oath-node</artifactId>
     <name>OATH Auth Tree Node</name>
     <description>An Authentication Tree Node for ForgeRock's Identity Platform</description>

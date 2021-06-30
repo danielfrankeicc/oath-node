@@ -47,7 +47,7 @@ public class OathVerifierNodeOutcomeProvider implements OutcomeProvider {
 
         LinkedList<Outcome> outcomes = new LinkedList<>();
         outcomes.addAll(ImmutableList.of(OATHOutcome.NOT_REGISTERED.getOutcome(), OATHOutcome.SUCCESS.getOutcome(), OATHOutcome.FAILURE.getOutcome()));
-        if (jsonValue.isNotNull() && jsonValue.get("allowRecoveryCodeUsage").asBoolean()) {
+        if (jsonValue != null && jsonValue.contains("allowRecoveryCodeUsage") && jsonValue.get("allowRecoveryCodeUsage").asBoolean()) {
             outcomes.add(OATHOutcome.RECOVERY_CODE.getOutcome());
         }
 
